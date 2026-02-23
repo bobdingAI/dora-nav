@@ -54,7 +54,7 @@ int main() {
     std::cout << "[MujocoSimBridge] Initializing..." << std::endl;
 
     // Initialize DORA node
-    auto dora_context = init_dora_node();
+    auto dora_context = init_dora_context_from_env();
     if (dora_context == nullptr) {
         std::cerr << "[MujocoSimBridge] Failed to initialize DORA node" << std::endl;
         return 1;

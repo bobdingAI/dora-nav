@@ -78,14 +78,16 @@ std::vector<uint8_t> LidarSimulator::generatePointCloud(
                 mju_mulMatVec3(ray_world, lidar_mat, ray_local);
 
                 // Perform raycast
-                mjtNum geomid[1];
+                int geomid[1];
+                mjtNum normal[3];
                 mjtNum dist = mj_ray(
                     model, data,
                     lidar_pos, ray_world,
                     nullptr,        // Check all geom groups
                     1,              // Include static geoms
                     lidar_body_id,  // Exclude LiDAR body
-                    geomid
+                    geomid,
+                    normal
                 );
 
                 // Check if hit within valid range
@@ -130,14 +132,16 @@ std::vector<uint8_t> LidarSimulator::generatePointCloud(
             mju_mulMatVec3(ray_world, lidar_mat, ray_local);
 
             // Perform raycast
-            mjtNum geomid[1];
+            int geomid[1];
+            mjtNum normal[3];
             mjtNum dist = mj_ray(
                 model, data,
                 lidar_pos, ray_world,
                 nullptr,
                 1,
                 lidar_body_id,
-                geomid
+                geomid,
+                normal
             );
 
             if (dist > 0 && dist >= config_.min_range && dist <= config_.max_range) {

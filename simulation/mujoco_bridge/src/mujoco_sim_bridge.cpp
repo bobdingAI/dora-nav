@@ -136,7 +136,7 @@ void MujocoSimBridge::run(void* dora_context) {
                     std::string output_id = "pointcloud";
                     dora_send_output(
                         dora_context,
-                        output_id.c_str(),
+                        const_cast<char*>(output_id.c_str()),
                         output_id.length(),
                         reinterpret_cast<char*>(pointcloud.data()),
                         pointcloud.size()
@@ -153,7 +153,7 @@ void MujocoSimBridge::run(void* dora_context) {
                     std::string output_id = "imu_msg";
                     dora_send_output(
                         dora_context,
-                        output_id.c_str(),
+                        const_cast<char*>(output_id.c_str()),
                         output_id.length(),
                         reinterpret_cast<char*>(imu_data.data()),
                         imu_data.size()
@@ -167,7 +167,7 @@ void MujocoSimBridge::run(void* dora_context) {
                 std::string pose_id = "ground_truth_pose";
                 dora_send_output(
                     dora_context,
-                    pose_id.c_str(),
+                    const_cast<char*>(pose_id.c_str()),
                     pose_id.length(),
                     reinterpret_cast<char*>(&pose),
                     sizeof(pose)

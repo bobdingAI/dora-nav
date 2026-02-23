@@ -20,7 +20,7 @@ int main() {
     std::cout << "[MujocoLidarSim] Initializing standalone LiDAR simulator..." << std::endl;
 
     // Initialize DORA node
-    auto dora_context = init_dora_node();
+    auto dora_context = init_dora_context_from_env();
     if (dora_context == nullptr) {
         std::cerr << "[MujocoLidarSim] Failed to initialize DORA node" << std::endl;
         return 1;
@@ -92,7 +92,7 @@ int main() {
                 std::string output_id = "pointcloud";
                 dora_send_output(
                     dora_context,
-                    output_id.c_str(),
+                    const_cast<char*>(output_id.c_str()),
                     output_id.length(),
                     reinterpret_cast<char*>(pointcloud.data()),
                     pointcloud.size()
