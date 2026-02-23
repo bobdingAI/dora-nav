@@ -1,0 +1,110 @@
+# Mujoco Simulation Dataflow for DORA-NAV
+# This dataflow replaces physical sensors with simulated equivalents
+#
+# Usage:
+#   dora up
+#   dora start simulation/mujoco_bridge/dataflow_mujoco_sim.yml
+
+nodes:
+  # Mujoco simulation bridge - replaces physical sensor drivers
+  - id: mujoco_sim
+    custom:
+      source: simulation/mujoco_bridge/build/mujoco_sim_bridge
+      inputs:
+        tick: dora/timer/millis/10
+      outputs:
+        - pointcloud
+        - imu_msg
+        - ground_truth_pose
+    envs:
+      MUJOCO_MODEL_PATH: simulation/mujoco_bridge/models/robot.xml
+      SIM_TIMESTEP: "0.001"
+      REAL_TIME_FACTOR: "1.0"
+      LIDAR_RAYS: "1080"
+      LIDAR_VERTICAL_BEAMS: "16"
+      LIDAR_RANGE: "100.0"
+      LIDAR_MIN_RANGE: "0.5"
+      POINTCLOUD_RATE: "10"
+      IMU_RATE: "20"
+      IMU_ADD_NOISE: "1"
+
+  # Localization node - UNCHANGED from real hardware
+  - id: hdl_localization
+    custom:
+      source: localization/dora-hdl_localization/build/hdl_localization
+      inputs:
+        pointcloud: mujoco_sim/pointcloud
+        imu_msg: mujoco_sim/imu_msg
+      outputs:
+        - cur_pose
+    envs:
+      use_imu: "1"
+
+  # Road publisher - UNCHANGED
+  - id: pub_road
+    custom:
+      source: map/pub_road/build/pubroad
+      inputs:
+        tick: dora/timer/millis/200
+      outputs:
+        - road_lane
+
+  # Road lane publisher - UNCHANGED
+  - id: road_lane_publisher_node
+    custom:
+      source: map/road_line_publisher/build/road_lane_publisher_node
+      inputs:
+        road_lane: pub_road/road_lane
+        cur_pose: hdl_localization/cur_pose
+      outputs:
+        - cur_pose_all
+
+  # Task publisher - UNCHANGED
+  - id: task_pub_node
+    custom:
+      source: planning/mission_planning/task_pub/build/task_pub_node
+      inputs:
+        tick: dora/timer/millis/20
+      outputs:
+        - road_attri_msg
+
+  # Planning - UNCHANGED
+  - id: planning
+    custom:
+      source: planning/routing_planning/build/routing_planning_node
+      inputs:
+        road_lane: pub_road/road_lane
+        cur_pose_all: road_lane_publisher_node/cur_pose_all
+        road_attri_msg: task_pub_node/road_attri_msg
+      outputs:
+        - raw_path
+        - Request
+
+  # Control nodes - UNCHANGED
+  - id: lon_control
+    custom:
+      source: control/vehicle_control/lon_controller/build/lon_controller_node
+      inputs:
+        Request: planning/Request
+      outputs:
+        - TrqBreCmd
+
+  - id: latcontrol
+    custom:
+      source: control/vehicle_control/lat_controller/build/lat_controller_node
+      inputs:
+        raw_path: planning/raw_path
+      outputs:
+        - SteeringCmd
+
+  # Note: In simulation, vehicle_chassis_n3 is not used
+  # Control outputs can be fed back to mujoco_sim if needed
+
+  # Visualization with Rerun
+  - id: rerun
+    custom:
+      source: rerun/build/to_rerun
+      inputs:
+        pointcloud: mujoco_sim/pointcloud
+        raw_path: planning/raw_path
+        cur_pose: hdl_localization/cur_pose
