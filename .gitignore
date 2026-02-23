@@ -3,3 +3,4 @@
 # 忽略 build/ 文件夹下的所有文件
 build/
 out/
+CLAUDE.md
