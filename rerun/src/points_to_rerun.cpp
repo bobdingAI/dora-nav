@@ -15,6 +15,7 @@ extern "C"
 #include <thread>
 #include <pthread.h>
 #include <cmath>
+#include <deque>
 #include <time.h>
 #include <sys/time.h>
 #include <iomanip>
@@ -23,6 +24,10 @@ extern "C"
 using namespace std;
 
 Pose2D_h pose;
+
+// Trajectory history for robot trail
+static std::deque<rerun::Position3D> pose_history;
+static const size_t MAX_TRAIL_POINTS = 500;
 
 
 
@@ -198,22 +203,48 @@ void pose2rerun(char *msg, rerun::RecordingStream& rec)
     pose.y = cur_pose->y;
     pose.theta = cur_pose->theta;
 
-    std::vector<rerun::Position3D> origins;
-    std::vector<rerun::Vector3D> vectors;
+    float theta = pose.theta;
+    float angle = theta * (M_PI / 180.0f);
 
-    float theta = pose.theta;  
-    float angle = theta * (M_PI / 180.0f);  
-    float length = 1.5f;  
- 
-    origins.push_back({pose.x, pose.y, 0.0});
-    vectors.push_back({length * cosf(angle), length * sinf(angle), 0.0});
-
+    // 1) Direction arrow - bright cyan, longer
+    float length = 2.5f;
+    std::vector<rerun::Position3D> origins = {{pose.x, pose.y, 0.2f}};
+    std::vector<rerun::Vector3D> vectors = {{length * cosf(angle), length * sinf(angle), 0.0f}};
     rec.log(
-        "arrows",
-        rerun::Arrows3D::from_vectors(vectors).with_origins(origins).with_colors(0xFF00FFFF)
+        "robot/arrow",
+        rerun::Arrows3D::from_vectors(vectors).with_origins(origins).with_colors(0x00FFFFFF)
     );
 
-    return ;
+    // 2) Robot body - yellow box at robot position, rotated
+    rec.log(
+        "robot/body",
+        rerun::Boxes3D::from_centers_and_half_sizes(
+            {{pose.x, pose.y, 0.1f}},
+            {{0.25f, 0.15f, 0.1f}}
+        )
+        .with_rotation_axis_angles({rerun::RotationAxisAngle({0.0f, 0.0f, 1.0f}, rerun::Angle::radians(angle))})
+        .with_colors({rerun::Rgba32(255, 255, 0)})
+        .with_fill_mode(rerun::FillMode::Solid)
+        .with_labels({"Robot"})
+    );
+
+    // 3) Trajectory trail - orange line showing where robot has been
+    pose_history.push_back({pose.x, pose.y, 0.05f});
+    if (pose_history.size() > MAX_TRAIL_POINTS) {
+        pose_history.pop_front();
+    }
+    if (pose_history.size() >= 2) {
+        std::vector<rerun::Position3D> trail(pose_history.begin(), pose_history.end());
+        std::vector<rerun::LineStrip3D> trail_strips = {rerun::LineStrip3D(trail)};
+        rec.log(
+            "robot/trail",
+            rerun::LineStrips3D(rerun::Collection<rerun::components::LineStrip3D>(std::move(trail_strips)))
+                .with_colors(0xFF6600FF)
+                .with_radii({0.06f})
+        );
+    }
+
+    return;
 }
 
 vector<rerun::Position3D> read_path(const string& waypoints_txt) 

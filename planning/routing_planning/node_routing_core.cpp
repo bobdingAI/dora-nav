@@ -183,8 +183,8 @@ void Current_Pose_callback(void *dora_context, char *msg)
 
     // pose.yaw = j["theta"]
     current_pose.yaw = deg2rad(cur_pose->theta);
-    current_pose.x = cur_pose->x - trans_para_back * cos(pose.yaw); 
-    current_pose.y = cur_pose->y - trans_para_back * sin(pose.yaw);
+    current_pose.x = cur_pose->x - trans_para_back * cos(current_pose.yaw);
+    current_pose.y = cur_pose->y - trans_para_back * sin(current_pose.yaw);
 
     vector<double> map_waypoints_x_temp;    
     vector<double> map_waypoints_y_temp;

@@ -96,12 +96,10 @@ void Current_Pose_callback(void *dora_context, char *msg)
     pose.x = cur_pose->x;
     pose.y = cur_pose->y;
     pose.theta = cur_pose->theta;
-    // std::cout << "cur_pose theta: "<< pose.theta << std::endl;
-    
-    // pose.theta = (cur_pose->theta >= 0) && (cur_pose->theta < 90) ?   //-->>真北方向夹角转地图坐标系
-    //                             90 - cur_pose->theta : 450 - cur_pose->theta;   
-    // pose.theta = j["theta"]
 
+    if (x_v_double.empty()) {
+        return;  // road_lane not received yet
+    }
 
     std::vector<double> start_frenet = getFrenet2(s_start_x, s_start_y, x_v_double, y_v_double, 0);
     std::vector<double> end_frenet = getFrenet2(s_end_x, s_end_y, x_v_double, y_v_double, 0); 

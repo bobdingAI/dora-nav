@@ -41,6 +41,7 @@ public:
 private:
     void stepSimulation(int num_steps);
     void processControlInput(const char* data, size_t len);
+    void applyVehicleControl();
     bool shouldSendPointcloud(double sim_time) const;
     bool shouldSendIMU(double sim_time) const;
 
@@ -59,6 +60,13 @@ private:
     int lidar_body_id_ = -1;
 
     std::atomic<bool> running_{false};
+
+    // Vehicle control state (from SteeringCmd / TrqBreCmd)
+    float steering_angle_ = 0.0f;   // degrees
+    float torque_pct_ = 0.0f;       // torque percentage
+    float brake_value_ = 0.0f;
+    uint8_t trq_enable_ = 0;
+    uint8_t bre_enable_ = 0;
 };
 
 }  // namespace dora_sim

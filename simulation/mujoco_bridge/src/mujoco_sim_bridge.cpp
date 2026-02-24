@@ -1,6 +1,8 @@
 #include "mujoco_sim_bridge.hpp"
+#include "Controller.h"
 #include <iostream>
 #include <cstring>
+#include <cmath>
 #include <sys/time.h>
 
 extern "C" {
@@ -162,8 +164,9 @@ void MujocoSimBridge::run(void* dora_context) {
                     last_imu_time_ = sim_time_;
                 }
 
-                // Send ground truth pose
+                // Send ground truth pose (theta in degrees for compatibility with Pose2D_h)
                 auto pose = getGroundTruthPose();
+                pose.theta = pose.theta * 180.0f / M_PI;
                 std::string pose_id = "ground_truth_pose";
                 dora_send_output(
                     dora_context,
@@ -180,6 +183,29 @@ void MujocoSimBridge::run(void* dora_context) {
                 size_t data_len;
                 read_dora_input_data(event, &data, &data_len);
                 processControlInput(data, data_len);
+
+            } else if (strncmp(input_id, "SteeringCmd", 11) == 0) {
+                char* data;
+                size_t data_len;
+                read_dora_input_data(event, &data, &data_len);
+                if (data_len >= sizeof(SteeringCmd_h)) {
+                    const SteeringCmd_h* cmd = reinterpret_cast<const SteeringCmd_h*>(data);
+                    steering_angle_ = cmd->SteeringAngle;
+                    applyVehicleControl();
+                }
+
+            } else if (strncmp(input_id, "TrqBreCmd", 9) == 0) {
+                char* data;
+                size_t data_len;
+                read_dora_input_data(event, &data, &data_len);
+                if (data_len >= sizeof(TrqBreCmd_h)) {
+                    const TrqBreCmd_h* cmd = reinterpret_cast<const TrqBreCmd_h*>(data);
+                    torque_pct_ = cmd->trq_value_3;
+                    brake_value_ = cmd->bre_value;
+                    trq_enable_ = cmd->trq_enable;
+                    bre_enable_ = cmd->bre_enable;
+                    applyVehicleControl();
+                }
             }
 
         } else if (event_type == DoraEventType_Stop) {
@@ -222,6 +248,36 @@ void MujocoSimBridge::processControlInput(const char* data, size_t len) {
             data_->ctrl[1] = right_vel;
         }
     }
+}
+
+void MujocoSimBridge::applyVehicleControl() {
+    if (model_->nu < 2) return;
+
+    // Convert steering angle (degrees) + torque % to differential drive
+    float linear_vel = 0.0f;
+    if (trq_enable_ && !bre_enable_) {
+        // Map torque/speed value to linear velocity (m/s)
+        // run_speed is ~320 for the real vehicle, scale to ~0.5 m/s for sim robot
+        linear_vel = torque_pct_ * 0.0015f;
+    } else if (bre_enable_) {
+        linear_vel = 0.0f;
+    }
+
+    // Convert steering angle to angular velocity
+    // steering_angle_ is in degrees
+    float steer_rad = steering_angle_ * (M_PI / 180.0f);
+    float wheelbase = 0.5f;  // robot wheelbase in meters
+    float angular_vel = 0.0f;
+    if (std::fabs(linear_vel) > 0.01f) {
+        angular_vel = linear_vel * std::tan(steer_rad) / wheelbase;
+    }
+
+    // Differential drive kinematics
+    float left_vel  = linear_vel - angular_vel * wheelbase / 2.0f;
+    float right_vel = linear_vel + angular_vel * wheelbase / 2.0f;
+
+    data_->ctrl[0] = left_vel;
+    data_->ctrl[1] = right_vel;
 }
 
 bool MujocoSimBridge::shouldSendPointcloud(double sim_time) const {

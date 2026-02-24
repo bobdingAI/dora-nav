@@ -250,8 +250,7 @@ int run(void *dora_context, Hdl_Localization& hdl_loc, std::ofstream& points_xy,
                 bool once_slam = run_once(hdl_loc, data, point_len, dora_context, points_xy, use_imu, get_imu);
                 if(!once_slam)
                 {
-                    std::cerr << "failed to run slam once" << std::endl;
-                    return -1;
+                    std::cerr << "failed to run slam once, retrying..." << std::endl;
                 }
                 // std::cout << "pointcloud" << std::endl;
             }

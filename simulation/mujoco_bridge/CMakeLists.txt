@@ -99,6 +99,7 @@ endif()
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../control/include
     ${DORA_INCLUDE_DIR}
     ${DORA_OPERATOR_DIR}
 )

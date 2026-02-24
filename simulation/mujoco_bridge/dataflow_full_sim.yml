@@ -9,6 +9,8 @@ nodes:
       path: /home/demo/Public/dora-nav/simulation/mujoco_bridge/build/mujoco_sim_bridge
       inputs:
         tick: dora/timer/millis/10
+        SteeringCmd: latcontrol/SteeringCmd
+        TrqBreCmd: lon_control/TrqBreCmd
       outputs:
         - pointcloud
         - imu_msg

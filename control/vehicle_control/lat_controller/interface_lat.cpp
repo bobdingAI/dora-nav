@@ -35,18 +35,18 @@ typedef struct
 void ros_veh_para_init()
 {
     struct VehPara temp;
-    temp.len = 1.6;
-    temp.width = 0.9;
-    temp.hight = 0.67;
-    temp.mass = 500;
-    temp.f_tread = 1.37;
-    temp.r_tread = 1.37;
-    temp.wheelbase = 1.95;
-    temp.steering_ratio = 34.2;
-    temp.max_steer_angle = 1024;
-    temp.max_wheel_angle = 1024;
-    temp.wheel_diam = 0.6;
-    pure_veh_para_init(temp); // 纯跟踪算法获取车辆参数
+    temp.len = 0.5;
+    temp.width = 0.3;
+    temp.hight = 0.2;
+    temp.mass = 6.0;
+    temp.f_tread = 0.3;
+    temp.r_tread = 0.3;
+    temp.wheelbase = 0.5;
+    temp.steering_ratio = 1.0;
+    temp.max_steer_angle = 45;
+    temp.max_wheel_angle = 45;
+    temp.wheel_diam = 0.2;
+    pure_veh_para_init(temp);
     return;
 }
 
@@ -210,12 +210,6 @@ int run(void *dora_context)
 
             steer_msg.SteeringAngle = filtered_angle; // 最终输出
 
-            //------------------------------------------------------------------------------------------------------
-            
-
-            // steer_msg.SteeringAngle = -pure_pursuit();
-            steer_msg.SteeringAngle = steer_msg.SteeringAngle * 0.5;
-
 
             //------------------------------------------------------------------------------------------------------
 
@@ -263,10 +257,10 @@ int run(void *dora_context)
 int main()
 {
     std::cout << "lat_control" << std::endl;
-    //std::cout << "***************************************" << std::endl;
+
+    ros_veh_para_init();
 
     auto dora_context = init_dora_context_from_env();
-    //std::cout << "////////////////////////////" << std::endl;
 
     auto ret = run(dora_context);
     free_dora_context(dora_context);
