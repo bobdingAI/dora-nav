@@ -20,21 +20,24 @@ find_package(Eigen3 QUIET)
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/dora_config.cmake)
+
 include_directories(
-  ${EIGEN3_LIBRARY_DIRS}
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/node #dora的头文件路径 node_api.h
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/operator
-  $ENV{HOME}/dora_project/0326_yewai/include
-  $ENV{HOME}/dora_project/0326_yewai/planning/routing_planning/include/ 
+  ${EIGEN3_INCLUDE_DIR}
+  ${DORA_INCLUDE_DIR}
+  ${DORA_OPERATOR_DIR}
+  ${DORA_NAV_ROOT}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 add_executable(routing_planning_node node_routing_core.cpp frenet.cpp pathplanning.cpp)
 target_link_libraries(routing_planning_node
   ${EIGEN_LIBRARIES}
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/target/aarch64-unknown-linux-gnu/release/libdora_node_api_c.a
+  ${DORA_LIB_PATH}
+  $<$<BOOL:${Python3_FOUND}>:Python3::Python>
   m
   rt
-  dl 
+  dl
   pthread
 )
 

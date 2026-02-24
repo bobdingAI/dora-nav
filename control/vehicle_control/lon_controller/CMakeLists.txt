@@ -18,19 +18,22 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 
 
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/dora_config.cmake)
+
 include_directories(
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/node #dora的头文件路径 node_api.h
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/operator
-  $ENV{HOME}/dora_project/0326_yewai/control/vehicle_control/lon_controller/include/
-  $ENV{HOME}/dora_project/0326_yewai/control/include/
+  ${DORA_INCLUDE_DIR}
+  ${DORA_OPERATOR_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${DORA_NAV_ROOT}/control/include
 )
 
 add_executable(lon_controller_node interface_lon.cpp lon_controller.cpp)
 target_link_libraries(lon_controller_node
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/target/aarch64-unknown-linux-gnu/release/libdora_node_api_c.a
+  ${DORA_LIB_PATH}
+  $<$<BOOL:${Python3_FOUND}>:Python3::Python>
   m
   rt
-  dl 
+  dl
   pthread
 )
 

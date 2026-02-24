@@ -21,21 +21,24 @@ find_package(Eigen3 REQUIRED)
 link_directories(${EIGEN3_LIBRARY_DIRS})
 
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/dora_config.cmake)
+
 include_directories(
   ${EIGEN3_INCLUDE_DIR}
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/node #dora的头文件路径 node_api.h
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/apis/c/operator
-  $ENV{HOME}/dora_project/0326_yewai/include
-  $ENV{HOME}/dora_project/0326_yewai/map/road_line_publisher/include
+  ${DORA_INCLUDE_DIR}
+  ${DORA_OPERATOR_DIR}
+  ${DORA_NAV_ROOT}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 add_executable(road_lane_publisher_node road_lane.cpp frenet.cpp)
 target_link_libraries(road_lane_publisher_node
-  $ENV{HOME}/dora_project/dddddd/dora-0.3.8/target/aarch64-unknown-linux-gnu/release/libdora_node_api_c.a
+  ${DORA_LIB_PATH}
+  $<$<BOOL:${Python3_FOUND}>:Python3::Python>
   ${EIGEN_LIBRARIES}
   m
   rt
-  dl 
+  dl
   pthread
 )
 

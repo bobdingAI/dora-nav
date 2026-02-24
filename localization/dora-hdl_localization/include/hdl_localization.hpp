@@ -68,7 +68,7 @@ pcl::Registration<pcl::PointXYZI, pcl::PointXYZI>::Ptr Hdl_Localization::create_
 bool Hdl_Localization::init_param(double point_downsample_resolution)
 {
     double downsample_resolution = point_downsample_resolution;
-    boost::shared_ptr<pcl::VoxelGrid<pcl::PointXYZI>> voxelgrid(new pcl::VoxelGrid<pcl::PointXYZI>());
+    auto voxelgrid = std::make_shared<pcl::VoxelGrid<pcl::PointXYZI>>();
     voxelgrid->setLeafSize(downsample_resolution, downsample_resolution, downsample_resolution);
     downsample_filter = voxelgrid;
 
