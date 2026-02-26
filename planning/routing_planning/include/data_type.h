@@ -9,7 +9,7 @@ using namespace std;
 
 const float speed_proportion = 0.3;       //速度离散比例系数
 //const float trans_para_forward = 0;     //将车辆定位转换到车头
-const float trans_para_back = 0.5;     //将车辆定位转换到houlun 5 4
+const float trans_para_back = 0.25;     //将车辆定位转换到houlun (half of 0.5m wheelbase)
 const float trans_para_park = 0;      //将车辆定位转换到车尾    2
 
 struct CurrentState

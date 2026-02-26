@@ -202,7 +202,7 @@ int run(void *dora_context)
 
             static double last_steering_angle = 0.0;  // 放在函数内，只初始化一次
 
-            double raw_angle = -pure_pursuit();       // 原始角度
+            double raw_angle = pure_pursuit();       // 原始角度 (positive = left for sim)
             double alpha = 0.8;
 
             double filtered_angle = alpha * last_steering_angle + (1 - alpha) * raw_angle;

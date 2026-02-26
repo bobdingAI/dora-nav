@@ -46,6 +46,13 @@ bool MujocoSimBridge::initialize(const SimConfig& config) {
     // Set simulation timestep
     model_->opt.timestep = config.sim_timestep;
 
+    // Load initial keyframe if available (sets robot start position/heading)
+    if (model_->nkey > 0) {
+        mj_resetDataKeyframe(model_, data_, 0);
+        mj_forward(model_, data_);
+        std::cout << "[MujocoSimBridge] Loaded keyframe 0 (initial pose)" << std::endl;
+    }
+
     // Find robot body (assume first body after world is robot base)
     robot_body_id_ = 1;  // Default to first body
     for (int i = 1; i < model_->nbody; i++) {
@@ -165,6 +172,7 @@ void MujocoSimBridge::run(void* dora_context) {
                 }
 
                 // Send ground truth pose (theta in degrees for compatibility with Pose2D_h)
+                // Pipeline yaw = atan2 angle (CCW from +X), same as mujoco
                 auto pose = getGroundTruthPose();
                 pose.theta = pose.theta * 180.0f / M_PI;
                 std::string pose_id = "ground_truth_pose";
@@ -297,10 +305,11 @@ GroundTruthPose MujocoSimBridge::getGroundTruthPose() const {
     pose.x = static_cast<float>(data_->xpos[robot_body_id_ * 3]);
     pose.y = static_cast<float>(data_->xpos[robot_body_id_ * 3 + 1]);
 
-    // Get rotation matrix and extract yaw
+    // Get rotation matrix (row-major) and extract yaw
+    // R = [cos(θ) -sin(θ) 0; sin(θ) cos(θ) 0; 0 0 1]
+    // mat[0]=cos(θ), mat[3]=sin(θ)
     const mjtNum* mat = data_->xmat + robot_body_id_ * 9;
-    // Yaw angle from rotation matrix (assuming Z-up)
-    pose.theta = static_cast<float>(std::atan2(mat[1], mat[0]));
+    pose.theta = static_cast<float>(std::atan2(mat[3], mat[0]));
 
     return pose;
 }

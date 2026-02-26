@@ -132,6 +132,11 @@
     <velocity name="right_motor" joint="right_wheel_joint" kv="10"/>
   </actuator>
 
+  <!-- Start robot at path origin facing path direction (128 deg = 2.234 rad) -->
+  <keyframe>
+    <key name="path_start" qpos="-0.21 0.28 2.234 0 0"/>
+  </keyframe>
+
   <sensor>
     <accelerometer name="imu_accel" site="imu_site"/>
     <gyro name="imu_gyro" site="imu_site"/>

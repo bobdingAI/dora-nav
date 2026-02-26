@@ -2,7 +2,7 @@
 
 DORA_NAV is an open-source autonomous navigation framework built on the [DORA](https://github.com/dora-rs/dora) dataflow orchestration framework. It supports differential-drive, omnidirectional, and Ackermann-type mobile robot chassis. The framework integrates sensor drivers, mapping, localization, perception, planning, and control into a complete point-to-point navigation pipeline.
 
-![Rerun Localization and Path Following Demo](images/localization.png)
+<video src="https://raw.githubusercontent.com/bobdingAI/dora-nav/master/images/dora_nav1.webm" width="100%" autoplay loop muted playsinline></video>
 
 The Rerun viewer displays the navigation pipeline in real-time:
 - **Red points** — Pre-built PCD point cloud map

@@ -1,4 +1,4 @@
-# Mujoco Simulation Dataflow for DORA-NAV
+# Mujoco Simulation Dataflow with NDT Localization
 # This dataflow replaces physical sensors with simulated equivalents
 #
 # Usage:
@@ -9,15 +9,18 @@ nodes:
   # Mujoco simulation bridge - replaces physical sensor drivers
   - id: mujoco_sim
     custom:
-      source: simulation/mujoco_bridge/build/mujoco_sim_bridge
+      source: Local
+      path: /home/demo/Public/dora-nav/simulation/mujoco_bridge/build/mujoco_sim_bridge
       inputs:
         tick: dora/timer/millis/10
+        SteeringCmd: latcontrol/SteeringCmd
+        TrqBreCmd: lon_control/TrqBreCmd
       outputs:
         - pointcloud
         - imu_msg
         - ground_truth_pose
-    envs:
-      MUJOCO_MODEL_PATH: simulation/mujoco_bridge/models/robot.xml
+    env:
+      MUJOCO_MODEL_PATH: /home/demo/Public/dora-nav/simulation/mujoco_bridge/models/robot_warehouse.xml
       SIM_TIMESTEP: "0.001"
       REAL_TIME_FACTOR: "1.0"
       LIDAR_RAYS: "1080"
@@ -28,50 +31,57 @@ nodes:
       IMU_RATE: "20"
       IMU_ADD_NOISE: "1"
 
-  # Localization node - UNCHANGED from real hardware
+  # NDT Localization node - uses HDL localization with NDT matching
   - id: hdl_localization
     custom:
-      source: localization/dora-hdl_localization/build/hdl_localization
+      source: Local
+      path: /home/demo/Public/dora-nav/localization/dora-hdl_localization/build/hdl_localization
       inputs:
         pointcloud: mujoco_sim/pointcloud
         imu_msg: mujoco_sim/imu_msg
       outputs:
         - cur_pose
-    envs:
+    env:
       use_imu: "1"
+      MAP_PCD: /home/demo/Public/dora-nav/localization/dora-hdl_localization/data/map/indoor.pcd
+      way_points: /home/demo/Public/dora-nav/data/path/trajectory.txt
 
-  # Road publisher - UNCHANGED
+  # Road publisher
   - id: pub_road
     custom:
-      source: map/pub_road/build/pubroad
+      source: Local
+      path: /home/demo/Public/dora-nav/map/pub_road/build/pubroad
       inputs:
         tick: dora/timer/millis/200
       outputs:
         - road_lane
 
-  # Road lane publisher - UNCHANGED
+  # Road lane publisher
   - id: road_lane_publisher_node
     custom:
-      source: map/road_line_publisher/build/road_lane_publisher_node
+      source: Local
+      path: /home/demo/Public/dora-nav/map/road_line_publisher/build/road_lane_publisher_node
       inputs:
         road_lane: pub_road/road_lane
         cur_pose: hdl_localization/cur_pose
       outputs:
         - cur_pose_all
 
-  # Task publisher - UNCHANGED
+  # Task publisher
   - id: task_pub_node
     custom:
-      source: planning/mission_planning/task_pub/build/task_pub_node
+      source: Local
+      path: /home/demo/Public/dora-nav/planning/mission_planning/task_pub/build/task_pub_node
       inputs:
         tick: dora/timer/millis/20
       outputs:
         - road_attri_msg
 
-  # Planning - UNCHANGED
+  # Planning
   - id: planning
     custom:
-      source: planning/routing_planning/build/routing_planning_node
+      source: Local
+      path: /home/demo/Public/dora-nav/planning/routing_planning/build/routing_planning_node
       inputs:
         road_lane: pub_road/road_lane
         cur_pose_all: road_lane_publisher_node/cur_pose_all
@@ -80,30 +90,31 @@ nodes:
         - raw_path
         - Request
 
-  # Control nodes - UNCHANGED
+  # Longitudinal control
   - id: lon_control
     custom:
-      source: control/vehicle_control/lon_controller/build/lon_controller_node
+      source: Local
+      path: /home/demo/Public/dora-nav/control/vehicle_control/lon_controller/build/lon_controller_node
       inputs:
         Request: planning/Request
       outputs:
         - TrqBreCmd
 
+  # Lateral control
   - id: latcontrol
     custom:
-      source: control/vehicle_control/lat_controller/build/lat_controller_node
+      source: Local
+      path: /home/demo/Public/dora-nav/control/vehicle_control/lat_controller/build/lat_controller_node
       inputs:
         raw_path: planning/raw_path
       outputs:
         - SteeringCmd
 
-  # Note: In simulation, vehicle_chassis_n3 is not used
-  # Control outputs can be fed back to mujoco_sim if needed
-
   # Visualization with Rerun
   - id: rerun
     custom:
-      source: rerun/build/to_rerun
+      source: Local
+      path: /home/demo/Public/dora-nav/rerun/build/to_rerun
       inputs:
         pointcloud: mujoco_sim/pointcloud
         raw_path: planning/raw_path
