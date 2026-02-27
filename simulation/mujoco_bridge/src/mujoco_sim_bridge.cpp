@@ -171,6 +171,16 @@ void MujocoSimBridge::run(void* dora_context) {
                     last_imu_time_ = sim_time_;
                 }
 
+                // Log position every 5 seconds
+                {
+                    static double last_log_time = 0;
+                    if (sim_time_ - last_log_time > 5.0) {
+                        auto check_pose = getGroundTruthPose();
+                        std::cout << "[MujocoSimBridge] pos=(" << check_pose.x << "," << check_pose.y << ")" << std::endl;
+                        last_log_time = sim_time_;
+                    }
+                }
+
                 // Send ground truth pose (theta in degrees for compatibility with Pose2D_h)
                 // Pipeline yaw = atan2 angle (CCW from +X), same as mujoco
                 auto pose = getGroundTruthPose();
@@ -280,12 +290,14 @@ void MujocoSimBridge::applyVehicleControl() {
         angular_vel = linear_vel * std::tan(steer_rad) / wheelbase;
     }
 
-    // Differential drive kinematics
+    // Differential drive kinematics (m/s at wheel contact)
     float left_vel  = linear_vel - angular_vel * wheelbase / 2.0f;
     float right_vel = linear_vel + angular_vel * wheelbase / 2.0f;
 
-    data_->ctrl[0] = left_vel;
-    data_->ctrl[1] = right_vel;
+    // Convert to angular velocity (rad/s) for MuJoCo velocity actuators
+    float wheel_radius = 0.1f;  // from robot model wheel geom
+    data_->ctrl[0] = left_vel / wheel_radius;
+    data_->ctrl[1] = right_vel / wheel_radius;
 }
 
 bool MujocoSimBridge::shouldSendPointcloud(double sim_time) const {

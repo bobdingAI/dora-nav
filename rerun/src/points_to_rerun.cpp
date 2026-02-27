@@ -207,7 +207,7 @@ void pose2rerun(char *msg, rerun::RecordingStream& rec)
     float angle = theta * (M_PI / 180.0f);
 
     // 1) Direction arrow - bright cyan, longer
-    float length = 2.5f;
+    float length = 4.0f;
     std::vector<rerun::Position3D> origins = {{pose.x, pose.y, 0.2f}};
     std::vector<rerun::Vector3D> vectors = {{length * cosf(angle), length * sinf(angle), 0.0f}};
     rec.log(
@@ -220,7 +220,7 @@ void pose2rerun(char *msg, rerun::RecordingStream& rec)
         "robot/body",
         rerun::Boxes3D::from_centers_and_half_sizes(
             {{pose.x, pose.y, 0.1f}},
-            {{0.25f, 0.15f, 0.1f}}
+            {{0.6f, 0.4f, 0.25f}}
         )
         .with_rotation_axis_angles({rerun::RotationAxisAngle({0.0f, 0.0f, 1.0f}, rerun::Angle::radians(angle))})
         .with_colors({rerun::Rgba32(255, 255, 0)})
@@ -240,7 +240,7 @@ void pose2rerun(char *msg, rerun::RecordingStream& rec)
             "robot/trail",
             rerun::LineStrips3D(rerun::Collection<rerun::components::LineStrip3D>(std::move(trail_strips)))
                 .with_colors(0xFF6600FF)
-                .with_radii({0.06f})
+                .with_radii({0.1f})
         );
     }
 
