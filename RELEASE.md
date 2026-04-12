@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.2.8
+
+- Fix obstacle avoidance to use swerve-and-return behavior
+- Reduce avoidance window from 15m to 5m so robot returns to center after passing obstacle
+- Increase lane-centering cost (deviation penalty 0.5 → 2.0) for minimum-offset swerves
+- AEB now triggers when ALL d-candidates are blocked (not just center lane)
+- Fix visual test scenarios: staggered wall for AEB, wider obstacle spacing for lane gap
+
 ## v0.2.7
 
 - Add `python/test_obstacle_avoidance_visual.py`: standalone 5-scenario obstacle avoidance visual test

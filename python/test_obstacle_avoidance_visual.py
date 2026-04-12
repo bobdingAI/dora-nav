@@ -507,42 +507,58 @@ def plan_with_avoidance(
     if recovery_state == 3:    # STOPPED
         return 1, 0.0, float('inf')
 
-    # Phase 1: AEB check
+    # Phase 2: d-offset candidate scoring
+    #
+    # Key design: only offset while obstacle is CLOSE AHEAD (within avoidance
+    # window).  Once the robot passes the obstacle, best_d returns to 0
+    # immediately so the path merges back to the reference lane.
+    AVOIDANCE_WINDOW = 5.0   # only offset for obstacles within 5m ahead
+    OBSTACLE_WIDTH = 1.0     # treat each obstacle as blocking ±1m laterally
+
+    candidates = [
+        d for d in [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+        if abs(d) <= ROAD_HALF_WIDTH
+    ]
+    best_d = 0.0
+    best_cost = float('inf')
+    all_blocked = True  # assume blocked until a clear candidate is found
+
+    if obstacles:
+        for d_cand in candidates:
+            obstacle_cost = 0.0
+            blocked = False
+            for obs in obstacles:
+                obs_s, obs_d = obs["s"], obs["d"]
+                s_ahead = obs_s - cur_s
+                if 0 < s_ahead < AVOIDANCE_WINDOW:
+                    lateral_dist = abs(obs_d - d_cand)
+                    if lateral_dist < OBSTACLE_WIDTH:
+                        # This candidate is blocked by this obstacle
+                        blocked = True
+                        obstacle_cost += 10.0  # heavy penalty
+                    else:
+                        obstacle_cost += 0.5 / lateral_dist  # mild repulsion
+            # Strong preference for d=0 (stay on lane)
+            deviation_cost = abs(d_cand) * 2.0
+            smoothness_cost = abs(d_cand - cur_d) * 0.5
+            total = obstacle_cost + deviation_cost + smoothness_cost
+            if not blocked:
+                all_blocked = False
+            if total < best_cost:
+                best_cost = total
+                best_d = d_cand
+
+    # Phase 1: AEB check — triggers when ALL candidates are blocked
     closest_obs_dist = float('inf')
     for obs in obstacles:
         obs_s, obs_d, obs_dist = obs["s"], obs["d"], obs["distance"]
         s_ahead = obs_s - cur_s
-        if 0 < s_ahead < AEB_DISTANCE and abs(obs_d) < ROAD_HALF_WIDTH:
+        if 0 < s_ahead < AEB_DISTANCE:
             if obs_dist < closest_obs_dist:
                 closest_obs_dist = obs_dist
 
-    if closest_obs_dist < AEB_COLLISION_DIST:
+    if all_blocked and obstacles and closest_obs_dist < AEB_COLLISION_DIST:
         return 3, 0.0, closest_obs_dist
-
-    # Phase 2: d-offset candidate scoring
-    best_d = 0.0
-    if obstacles:
-        candidates = [
-            d for d in [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
-            if abs(d) <= ROAD_HALF_WIDTH
-        ]
-        best_cost = float('inf')
-        for d_cand in candidates:
-            obstacle_cost = 0.0
-            for obs in obstacles:
-                obs_s, obs_d = obs["s"], obs["d"]
-                s_ahead = obs_s - cur_s
-                if 0 < s_ahead < LOOK_AHEAD_DIST:
-                    lateral_dist = abs(obs_d - d_cand)
-                    if lateral_dist < 0.1:
-                        lateral_dist = 0.1
-                    obstacle_cost += 1.0 / lateral_dist
-            deviation_cost = abs(d_cand) * 0.5
-            smoothness_cost = abs(d_cand - cur_d) * 0.3
-            total = obstacle_cost + deviation_cost + smoothness_cost
-            if total < best_cost:
-                best_cost = total
-                best_d = d_cand
 
     return 0, best_d, closest_obs_dist
 
@@ -938,16 +954,21 @@ def main() -> None:
     rr.log("robot/trail", rr.Clear(recursive=True))
 
     # -----------------------------------------------------------------------
-    # Scenario 2: Single obstacle directly on path → AEB stop
+    # Scenario 2: Staggered wall across entire road → no lateral escape → AEB
+    # Obstacles spread in both s and d so they cluster individually,
+    # each blocking one d-candidate.
     # -----------------------------------------------------------------------
-    obs_x2, obs_y2 = get_xy_from_frenet(obs_s, 0.0, maps_s, maps_x, maps_y)
-    print(f"\nScenario 2 obstacle at global ({obs_x2:.2f}, {obs_y2:.2f})  "
-          f"[s={obs_s:.1f} d=0.0]")
+    aeb_wall = []
+    for i, d_val in enumerate([-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]):
+        s_offset = obs_s + (i % 3) * 1.5  # stagger s: 15, 16.5, 18, 15, 16.5, ...
+        wx, wy = get_xy_from_frenet(s_offset, d_val, maps_s, maps_x, maps_y)
+        aeb_wall.append((wx, wy, 0.6, 0.6, 0.8))
+    print(f"\nScenario 2: staggered wall of {len(aeb_wall)} obstacles")
     global_step = run_scenario(
-        "Scenario 2: Single Obstacle on Path — AEB Stop",
+        "Scenario 2: Staggered Wall — AEB Emergency Stop",
         maps_x, maps_y, maps_s,
         start_s=start_s,
-        obstacles_global=[(obs_x2, obs_y2, 1.2, 1.0, 1.0)],
+        obstacles_global=aeb_wall,
         num_steps=100,
         step_offset=global_step,
     )
@@ -957,16 +978,16 @@ def main() -> None:
     rr.log("costmap", rr.Clear(recursive=True))
 
     # -----------------------------------------------------------------------
-    # Scenario 3: Obstacle offset to one side → lateral avoidance
+    # Scenario 3: Single obstacle on path → lateral swerve around it
     # -----------------------------------------------------------------------
-    obs_x3, obs_y3 = get_xy_from_frenet(obs_s, 0.3, maps_s, maps_x, maps_y)
+    obs_x3, obs_y3 = get_xy_from_frenet(obs_s, 0.0, maps_s, maps_x, maps_y)
     print(f"\nScenario 3 obstacle at global ({obs_x3:.2f}, {obs_y3:.2f})  "
-          f"[s={obs_s:.1f} d=+0.3]")
+          f"[s={obs_s:.1f} d=0.0]")
     global_step = run_scenario(
-        "Scenario 3: Offset Obstacle — Lateral Avoidance",
+        "Scenario 3: Single Obstacle — Lateral Swerve",
         maps_x, maps_y, maps_s,
         start_s=start_s,
-        obstacles_global=[(obs_x3, obs_y3, 0.8, 0.8, 0.9)],
+        obstacles_global=[(obs_x3, obs_y3, 1.0, 1.0, 1.0)],
         num_steps=120,
         step_offset=global_step,
     )
@@ -976,11 +997,11 @@ def main() -> None:
     rr.log("costmap", rr.Clear(recursive=True))
 
     # -----------------------------------------------------------------------
-    # Scenario 4: Two obstacles at ±0.5 m → planner finds gap at d=-1.5
+    # Scenario 4: Two obstacles at ±1.5 m → planner finds gap at d=0
     # -----------------------------------------------------------------------
-    obs4a_x, obs4a_y = get_xy_from_frenet(obs_s, -0.5, maps_s, maps_x, maps_y)
-    obs4b_x, obs4b_y = get_xy_from_frenet(obs_s, 0.5, maps_s, maps_x, maps_y)
-    print(f"\nScenario 4 obstacles at d=-0.5 and d=+0.5")
+    obs4a_x, obs4a_y = get_xy_from_frenet(obs_s, -1.5, maps_s, maps_x, maps_y)
+    obs4b_x, obs4b_y = get_xy_from_frenet(obs_s, 1.5, maps_s, maps_x, maps_y)
+    print(f"\nScenario 4 obstacles at d=-1.5 and d=+1.5")
     global_step = run_scenario(
         "Scenario 4: Two Obstacles — Lane Gap Selection",
         maps_x, maps_y, maps_s,
@@ -1001,9 +1022,10 @@ def main() -> None:
     # Scenario 5: Full road blockage → recovery state machine
     # -----------------------------------------------------------------------
     obstacles_full = []
-    for d_val in [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]:
-        ox, oy = get_xy_from_frenet(obs_s, d_val, maps_s, maps_x, maps_y)
-        obstacles_full.append((ox, oy, 0.7, 0.7, 0.8))
+    for i, d_val in enumerate([-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]):
+        s_offset = obs_s + (i % 3) * 1.5
+        ox, oy = get_xy_from_frenet(s_offset, d_val, maps_s, maps_x, maps_y)
+        obstacles_full.append((ox, oy, 0.6, 0.6, 0.8))
     print(f"\nScenario 5: full road blockage ({len(obstacles_full)} obstacles across width)")
     global_step = run_scenario(
         "Scenario 5: Full Blockage — Recovery State Machine",

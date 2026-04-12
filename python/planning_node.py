@@ -280,46 +280,57 @@ def main():
                 node.send_output("raw_path", pa.array(list(raw_path), type=pa.uint8()))
                 continue
 
-            # ---- Phase 1: AEB check ----
-            aeb_distance = 5.0    # meters ahead to check for imminent collision
-            road_half_width = 2.0  # meters from center line
-            closest_obs_dist = float('inf')
+            # ---- Phase 2: d-offset lateral avoidance ----
+            # Only offset while obstacle is CLOSE AHEAD (within avoidance
+            # window).  Once past, best_d returns to 0 so robot merges back.
+            aeb_distance = 5.0
+            road_half_width = 2.0
+            avoidance_window = 5.0   # swerve for obstacles within 5m ahead
+            obstacle_half_w = 1.0    # each obstacle blocks ±1m laterally
 
+            candidates = [d for d in [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+                          if abs(d) <= road_half_width]
+            best_d = 0.0
+            best_cost = float('inf')
+            all_blocked = True
+
+            if _obstacles:
+                for d_cand in candidates:
+                    obstacle_cost = 0.0
+                    blocked = False
+                    for obs in _obstacles:
+                        obs_s, obs_d = obs[3], obs[4]
+                        s_ahead = obs_s - cs
+                        if 0 < s_ahead < avoidance_window:
+                            lateral_dist = abs(obs_d - d_cand)
+                            if lateral_dist < obstacle_half_w:
+                                blocked = True
+                                obstacle_cost += 10.0
+                            else:
+                                obstacle_cost += 0.5 / lateral_dist
+                    deviation_cost = abs(d_cand) * 2.0
+                    smoothness_cost = abs(d_cand - cd) * 0.5
+                    total = obstacle_cost + deviation_cost + smoothness_cost
+                    if not blocked:
+                        all_blocked = False
+                    if total < best_cost:
+                        best_cost = total
+                        best_d = d_cand
+
+            # ---- Phase 1: AEB — triggers when ALL candidates blocked ----
+            closest_obs_dist = float('inf')
             for obs in _obstacles:
                 obs_s, obs_d, obs_dist = obs[3], obs[4], obs[10]
                 s_ahead = obs_s - cs
-                if 0 < s_ahead < aeb_distance and abs(obs_d) < road_half_width:
+                if 0 < s_ahead < aeb_distance:
                     if obs_dist < closest_obs_dist:
                         closest_obs_dist = obs_dist
 
-            if closest_obs_dist < 3.0:  # imminent collision — emergency brake
+            if all_blocked and _obstacles and closest_obs_dist < 3.0:
                 request = struct.pack('<Bfff', 3, _run_speed, 0.0, closest_obs_dist)
                 node.send_output("raw_path", pa.array(list(raw_path), type=pa.uint8()))
                 node.send_output("Request", pa.array(list(request), type=pa.uint8()))
                 continue
-
-            # ---- Phase 2: Multi-d-offset lateral avoidance ----
-            best_d = 0.0
-            if _obstacles:
-                candidates = [d for d in [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
-                              if abs(d) <= road_half_width]
-                best_cost = float('inf')
-                for d_cand in candidates:
-                    obstacle_cost = 0.0
-                    for obs in _obstacles:
-                        obs_s, obs_d = obs[3], obs[4]
-                        s_ahead = obs_s - cs
-                        if 0 < s_ahead < 15.0:
-                            lateral_dist = abs(obs_d - d_cand)
-                            if lateral_dist < 0.1:
-                                lateral_dist = 0.1
-                            obstacle_cost += 1.0 / lateral_dist
-                    deviation_cost = abs(d_cand) * 0.5
-                    smoothness_cost = abs(d_cand - cd) * 0.3
-                    total = obstacle_cost + deviation_cost + smoothness_cost
-                    if total < best_cost:
-                        best_cost = total
-                        best_d = d_cand
 
             # Replan with smooth lateral offset when avoidance is needed
             if abs(best_d) > 0.01:
