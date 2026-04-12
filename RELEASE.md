@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.2.3
+
+- Add `costmap_node.py`: Phase 2 rolling-window 2D occupancy costmap DORA node
+- Robot-centred grid with configurable size (COSTMAP_SIZE_M, default 20m), resolution (COSTMAP_RESOLUTION, default 0.1m) giving a 200x200 = 40K-cell grid
+- Precomputed inflation kernel with linear cost decay 253→1 over INFLATION_RADIUS (default 0.5m)
+- Vectorised numpy pipeline: pointcloud parse → ground removal (z < 0.15m) → global-frame transform → distance filter → grid update → inflation
+- Serialises to 28-byte header + row-major uint8 grid data on `costmap_grid` output
+- All parameters configurable via environment variables
+
 ## v0.2.2
 
 - Add `obstacle_detector_node.py`: Phase 1 lidar-based obstacle detection DORA node
