@@ -1,5 +1,15 @@
 # Release Notes
 
+## v0.2.5
+
+- Extend `planning_node.py` with three-phase obstacle avoidance
+- Phase 3 (recovery override): immediately STOP or BACK when `recovery_cmd` signals WAITING, BACKING_UP, or STOPPED states, bypassing all other planning
+- Phase 1 (AEB): scan `obstacle_list` for obstacles within 5m ahead and inside road half-width; emit type=3 emergency brake request when closest distance < 3m
+- Phase 2 (lateral avoidance): cost-minimisation over 9 d-offset candidates [-2, -1.5 … +2m]; costs combine obstacle proximity (1/lateral_dist), lane deviation (0.5×|d|), and smoothness (0.3×|Δd|); replan via `plan_path_with_d()` when best_d ≠ 0
+- Add `plan_path_with_d()`: CubicSpline d-profile blending cur_d → target_d over ~3m using `scipy.interpolate.CubicSpline` with clamped boundary conditions
+- Add handlers for `obstacle_list`, `costmap_grid`, and `recovery_cmd` inputs
+- Update module docstring with all new input/output formats and request type codes
+
 ## v0.2.4
 
 - Add `obstacle_list` handler to `rerun_viz_node.py`: renders each tracked obstacle as a red 3D box (`rr.Boxes3D`) with label showing ID and distance
