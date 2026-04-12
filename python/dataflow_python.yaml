@@ -7,7 +7,7 @@
 # RoadAttri_h) as the C++ nodes — fully wire-compatible.
 #
 # Prerequisites:
-#   pip install dora-rs pyarrow numpy
+#   pip install dora-rs pyarrow numpy scipy
 #   MuJoCo simulation node (dora-mujoco) or real robot providing:
 #     - joint_positions (qpos array) on 10ms tick
 #     - wheel_control input (4 floats: speed_l, speed_r, steer_l, steer_r)
@@ -61,6 +61,37 @@ nodes:
       - road_attri_msg
 
   # =======================================
+  # Obstacle Detector (Phase 1) — lidar → obstacle list
+  # =======================================
+  - id: obstacle-detector
+    path: obstacle_detector_node.py
+    inputs:
+      pointcloud: mujoco-sim/pointcloud
+      ground_truth_pose: pose-extractor/ground_truth_pose
+      road_lane: pub-road/road_lane
+    outputs:
+      - obstacle_list
+    env:
+      GROUND_THRESHOLD: "0.15"
+      MAX_DETECT_RANGE: "15.0"
+      CLUSTER_TOLERANCE: "0.5"
+
+  # =======================================
+  # Costmap (Phase 2) — lidar → 2D occupancy grid
+  # =======================================
+  - id: costmap
+    path: costmap_node.py
+    inputs:
+      pointcloud: mujoco-sim/pointcloud
+      ground_truth_pose: pose-extractor/ground_truth_pose
+    outputs:
+      - costmap_grid
+    env:
+      COSTMAP_RESOLUTION: "0.1"
+      COSTMAP_SIZE_M: "20.0"
+      INFLATION_RADIUS: "0.5"
+
+  # =======================================
   # Frenet Path Planner (replaces C++ routing_planning_node)
   # =======================================
   - id: planning
@@ -69,6 +100,9 @@ nodes:
       road_lane: pub-road/road_lane
       cur_pose_all: road-lane-publisher/cur_pose_all
       road_attri_msg: task-pub-stub/road_attri_msg
+      obstacle_list: obstacle-detector/obstacle_list
+      costmap_grid: costmap/costmap_grid
+      recovery_cmd: recovery-monitor/recovery_cmd
     outputs:
       - raw_path
       - Request
@@ -94,6 +128,17 @@ nodes:
       - SteeringCmd
 
   # =======================================
+  # Recovery Monitor (Phase 3) — stuck detection + recovery
+  # =======================================
+  - id: recovery-monitor
+    path: recovery_monitor_node.py
+    inputs:
+      ground_truth_pose: pose-extractor/ground_truth_pose
+      Request: planning/Request
+    outputs:
+      - recovery_cmd
+
+  # =======================================
   # Rerun 3D Visualization
   # =======================================
   - id: rerun
@@ -101,6 +146,8 @@ nodes:
     inputs:
       raw_path: planning/raw_path
       cur_pose: pose-extractor/ground_truth_pose
+      obstacle_list: obstacle-detector/obstacle_list
+      costmap_grid: costmap/costmap_grid
     env:
       WAYPOINTS_FILE: "../map/pub_road/Waypoints.txt"
       MAP_PCD_FILE: "../data/map.pcd"

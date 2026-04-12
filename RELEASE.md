@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.2.6
+
+- Wire all obstacle avoidance nodes into `dataflow_python.yaml`
+- Add `obstacle-detector`, `costmap`, and `recovery-monitor` node definitions
+- Connect `obstacle_list`, `costmap_grid`, `recovery_cmd` inputs to `planning` node
+- Connect `obstacle_list`, `costmap_grid` inputs to `rerun` visualization node
+- Add `scipy` to prerequisites
+
 ## v0.2.5
 
 - Extend `planning_node.py` with three-phase obstacle avoidance
