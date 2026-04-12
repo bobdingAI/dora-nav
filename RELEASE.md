@@ -1,5 +1,18 @@
 # Release Notes
 
+## v0.2.7
+
+- Add `python/test_obstacle_avoidance_visual.py`: standalone 5-scenario obstacle avoidance visual test
+- Runs entirely without DORA daemon or MuJoCo; opens Rerun viewer directly
+- Inlines all core math from node files: `compute_cumulative_s`, `get_frenet`, `get_xy_from_frenet`, `plan_path`, `plan_path_with_d`, Phase 1/2 avoidance logic, `Costmap2D`
+- Generates synthetic pointclouds (16B header + Nx16B float32 points) per obstacle bounding box
+- Inline obstacle detection pipeline: ground filter, range filter, KDTree Euclidean clustering, Frenet coords
+- 5 test scenarios: baseline driving, AEB stop, lateral avoidance, two-obstacle lane selection, full blockage with recovery state machine (NORMAL → WAITING → BACKING_UP → STOPPED)
+- Rerun timeline uses `rr.set_time_sequence("step", ...)` for full scrubber support
+- Robust waypoints loading: tries multiple candidate paths; falls back to synthetic 80m oval if not found
+- Compatible with Python 3.8+ via `from __future__ import annotations`
+
+
 ## v0.2.6
 
 - Wire all obstacle avoidance nodes into `dataflow_python.yaml`
