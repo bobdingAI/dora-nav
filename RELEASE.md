@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.2.4
+
+- Add `obstacle_list` handler to `rerun_viz_node.py`: renders each tracked obstacle as a red 3D box (`rr.Boxes3D`) with label showing ID and distance
+- Add `costmap_grid` handler to `rerun_viz_node.py`: renders costmap as a flat point cloud at z=-0.05m; red (alpha 180) for fully-occupied cells (cost >= 254), yellow (alpha 100) for inflated cells
+- Both handlers emit `rr.Clear(recursive=True)` when input is empty, keeping the viewer clean
+
 ## v0.2.3
 
 - Add `costmap_node.py`: Phase 2 rolling-window 2D occupancy costmap DORA node
