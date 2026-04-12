@@ -1,0 +1,106 @@
+# dataflow_python.yaml — All-Python dora-nav navigation pipeline
+#
+# Drop-in replacement for the C++ dora-nav nodes. Runs on macOS and Linux
+# without requiring CMake builds or the dora C API static library.
+#
+# Same binary formats (Pose2D_h, CurPose_h, SteeringCmd_h, TrqBreCmd_h,
+# RoadAttri_h) as the C++ nodes — fully wire-compatible.
+#
+# Prerequisites:
+#   pip install dora-rs pyarrow numpy
+#   MuJoCo simulation node (dora-mujoco) or real robot providing:
+#     - joint_positions (qpos array) on 10ms tick
+#     - wheel_control input (4 floats: speed_l, speed_r, steer_l, steer_r)
+#
+# Run standalone (with MuJoCo):
+#   export DORA_MUJOCO_PATH=/path/to/dora-mujoco
+#   dora up && dora start python/dataflow_python.yaml --attach
+
+nodes:
+  # =======================================
+  # Waypoint Publisher (replaces C++ pubroad)
+  # =======================================
+  - id: pub-road
+    path: pub_road_node.py
+    inputs:
+      tick: dora/timer/millis/200
+    outputs:
+      - road_lane
+    env:
+      WAYPOINTS_FILE: "../map/pub_road/Waypoints.txt"
+
+  # =======================================
+  # Pose → Frenet Converter (replaces C++ road_lane_publisher_node)
+  # =======================================
+  - id: road-lane-publisher
+    path: road_lane_publisher_node.py
+    inputs:
+      road_lane: pub-road/road_lane
+      cur_pose: pose-extractor/ground_truth_pose
+    outputs:
+      - cur_pose_all
+
+  # =======================================
+  # Pose Extractor (MuJoCo qpos → Pose2D_h)
+  # =======================================
+  - id: pose-extractor
+    path: pose_extractor_node.py
+    inputs:
+      joint_positions: mujoco-sim/joint_positions
+    outputs:
+      - ground_truth_pose
+
+  # =======================================
+  # Road Attributes (replaces C++ task_pub_node)
+  # =======================================
+  - id: task-pub-stub
+    path: task_pub_stub.py
+    inputs:
+      tick: dora/timer/millis/100
+    outputs:
+      - road_attri_msg
+
+  # =======================================
+  # Frenet Path Planner (replaces C++ routing_planning_node)
+  # =======================================
+  - id: planning
+    path: planning_node.py
+    inputs:
+      road_lane: pub-road/road_lane
+      cur_pose_all: road-lane-publisher/cur_pose_all
+      road_attri_msg: task-pub-stub/road_attri_msg
+    outputs:
+      - raw_path
+      - Request
+
+  # =======================================
+  # Longitudinal Control (replaces C++ lon_controller_node)
+  # =======================================
+  - id: lon-control
+    path: lon_controller_node.py
+    inputs:
+      Request: planning/Request
+    outputs:
+      - TrqBreCmd
+
+  # =======================================
+  # Lateral Control — Pure Pursuit (replaces C++ lat_controller_node)
+  # =======================================
+  - id: lat-control
+    path: lat_controller_node.py
+    inputs:
+      raw_path: planning/raw_path
+    outputs:
+      - SteeringCmd
+
+  # =======================================
+  # Rerun 3D Visualization
+  # =======================================
+  - id: rerun
+    path: rerun_viz_node.py
+    inputs:
+      raw_path: planning/raw_path
+      cur_pose: pose-extractor/ground_truth_pose
+    env:
+      WAYPOINTS_FILE: "../map/pub_road/Waypoints.txt"
+      MAP_PCD_FILE: "../data/map.pcd"
