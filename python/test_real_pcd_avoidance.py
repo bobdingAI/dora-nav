@@ -36,7 +36,7 @@ ROAD_HALF_WIDTH = 2.0
 AEB_COLLISION_DIST = 3.0
 AEB_DISTANCE = 5.0
 RUN_SPEED = 320.0
-ROBOT_SPEED_MPS = 0.5
+ROBOT_SPEED_MPS = 0.2
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +482,7 @@ def main():
     print(f"  Robot driving through real PCD obstacle")
     print(f"{'='*60}")
 
-    num_steps = 120
+    num_steps = 300
     for step in range(num_steps):
         rr.set_time_sequence("step", step)
 
@@ -582,7 +582,7 @@ def main():
         elif req_type == 3:
             pass  # AEB — hold position
 
-        time.sleep(0.05)
+        time.sleep(0.15)
 
     print(f"\n\nDone! Check the Rerun viewer.")
     print("  Red cloud  = real PCD data (table_scene_lms400.pcd)")
