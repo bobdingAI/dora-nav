@@ -358,15 +358,44 @@ REQUEST_NAMES = {0: "FORWARD", 1: "STOP", 2: "BACK", 3: "AEB"}
 def main():
     rr.init("real_pcd_obstacle_test", spawn=True)
 
-    # Build a straight 60m road
-    n_wp = 120
-    maps_x = np.linspace(0, 60, n_wp, dtype=np.float64)
-    maps_y = np.zeros(n_wp, dtype=np.float64)
-    maps_s = compute_cumulative_s(maps_x, maps_y)
+    # Load waypoints from file (same input as pub_road_node.py)
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    wp_candidates = [
+        os.path.join(script_dir, "../map/pub_road/Waypoints.txt"),
+        "map/pub_road/Waypoints.txt",
+    ]
+    wp_file = None
+    for c in wp_candidates:
+        if os.path.exists(c):
+            wp_file = c
+            break
 
-    # Log waypoints
+    if wp_file:
+        pts_x, pts_y = [], []
+        with open(wp_file) as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    pts_x.append(float(parts[0]))
+                    pts_y.append(float(parts[1]))
+        maps_x = np.array(pts_x, dtype=np.float64)
+        maps_y = np.array(pts_y, dtype=np.float64)
+        print(f"[waypoints] Loaded {len(maps_x)} waypoints from {wp_file}")
+    else:
+        # Fallback: straight 60m road
+        print("[waypoints] Waypoints.txt not found — using straight 60m road")
+        maps_x = np.linspace(0, 60, 120, dtype=np.float64)
+        maps_y = np.zeros(120, dtype=np.float64)
+
+    maps_s = compute_cumulative_s(maps_x, maps_y)
+    n_wp = len(maps_x)
+    print(f"[waypoints] Road length: {maps_s[-1]:.1f}m ({n_wp} points)")
+
+    # Log waypoints as white line
     wp_pts = np.zeros((n_wp, 3), dtype=np.float32)
-    wp_pts[:, 0] = maps_x
+    wp_pts[:, 0] = maps_x.astype(np.float32)
+    wp_pts[:, 1] = maps_y.astype(np.float32)
     rr.log("global_path_points", rr.LineStrips3D(
         [wp_pts], colors=[[255, 255, 255, 255]], radii=[0.08]))
 
@@ -412,13 +441,17 @@ def main():
             "points": cluster_pts,
         })
 
-    # Shift obstacle clusters onto the road (y=0) so they actually block it
+    # Shift obstacle clusters onto the road centerline so they actually block it
+    # The road may be curved, so use the actual road y at the obstacle's x position
     if precomputed_obstacles:
-        y_shift = -precomputed_obstacles[0]["y"]  # center first cluster on road
+        road_x_at_obs, road_y_at_obs = get_xy_from_frenet(
+            25.0, 0.0, maps_s, maps_x, maps_y)
+        y_shift = road_y_at_obs - precomputed_obstacles[0]["y"]
         for obs in precomputed_obstacles:
             obs["y"] += y_shift
         # Also shift the full viz cloud
         obstacle_pts[:, 1] += y_shift
+        print(f"[pcd] Shifted obstacle onto road centerline (y_shift={y_shift:+.1f}m)")
 
     print(f"[pcd] Found {len(precomputed_obstacles)} object clusters:")
     for obs in precomputed_obstacles:
