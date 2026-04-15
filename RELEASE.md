@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.2.13
+
+- Add `build.sh`: unified build script for C++ nodes and Python dependencies
+- Supports `./build.sh all|cpp|python|clean|<node_dir>` targets
+- Builds NDT-OMP dependency automatically before localization node
+- Add `python/requirements.txt` with all Python node dependencies (dora-rs, pyarrow, numpy, scipy, open3d, rerun-sdk)
+
 ## v0.2.8
 
 - Fix obstacle avoidance to use swerve-and-return behavior
